@@ -31,4 +31,4 @@ It can be installed with:
 ```shell
 brew tap mczachurski/wallpapper
 brew install wallpapper
-x```
+```
