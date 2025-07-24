@@ -1,6 +1,6 @@
 # Aperture Laboratories wallpaper generator
 
-Public domain image from [here](https://commons.wikimedia.org/wiki/File:Aperture_Laboratories_Logo.svg).
+This project generates a wallpaper that changes based on the light or dark theme setting using the public domain image from [here](https://commons.wikimedia.org/wiki/File:Aperture_Laboratories_Logo.svg).
 
 ## Manual process to generate page screenshots
 
@@ -37,5 +37,5 @@ brew install wallpapper
 
 ## Future ideas
 
-1. Process multiple HTML files (e.g. *.html under resources)
+1. Process multiple HTML files (e.g. \*.html under resources)
 2. Add Github Action for build with [macOS runners](https://github.blog/changelog/2024-01-30-github-actions-introducing-the-new-m1-macos-runner-available-to-open-source/)
