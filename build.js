@@ -15,12 +15,15 @@ const resolutions = [
 ];
 
 const browserPath =
+  process.env.BROWSER_PATH ||
   "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
 
 async function build() {
   const cwd = process.cwd();
 
-  const location = `file:///${cwd}/simple.html`;
+  const location = `file:///${cwd}/aperture.html`;
+
+  console.log(`# Generating wallpapers using ${browserPath}`);
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -30,7 +33,7 @@ async function build() {
 
   const colorSchemes = ["light", "dark"];
 
-  console.log(`📄 Building wallpapers out of ${location}`);
+  console.log(`# Building wallpapers out of ${location}`);
 
   for (const resolution of resolutions) {
     // Save images
@@ -60,7 +63,7 @@ async function build() {
           height: resolution.height,
         },
       });
-      console.log(`💾 Image saved: ${imagePath}`);
+      console.log(`# Image saved: ${imagePath}`);
     }
 
     // Create macOS wallpaper
@@ -90,10 +93,10 @@ async function build() {
         stdio: "inherit",
       });
 
-      console.log(`💻 Created dynamic wallpaper: ${outputFileName}`);
+      console.log(`# Created dynamic wallpaper: ${outputFileName}`);
     } catch (error) {
       console.error(
-        `🚨 Error creating wallpaper for ${resolution.width}x${resolution.height}:`,
+        `!!! Error creating wallpaper for ${resolution.width}x${resolution.height}:`,
         error.message,
       );
     } finally {

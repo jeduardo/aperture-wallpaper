@@ -10,28 +10,31 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        /* We use puppeteer to set the size */
         /* width: 3840px;
         height: 2160px; */
       }
 
-      /* 1) High-quality scaling hint (if supported) */
+      /* High-quality scaling hint (if supported) */
       object[type="image/svg+xml"] {
         display: block; /* remove inline whitespace */
-        width: 100%; /* or fixed px size as needed */
         height: auto;
         image-rendering: auto; /* hint for smooth scaling */
       }
 
+      /* Rounding the edges, lest they look jagged */
       object[type="image/svg+xml"] {
         -webkit-filter: blur(0.5px) contrast(1.1);
         filter: blur(0.5px) contrast(1.1);
       }
 
+      /* Shrink the logo so it doesn't take the entire screen */
       object[type="image/svg+xml"] {
         width: 40%;
         height: 40%;
       }
 
+      /* Dark theme overrides */
       @media (prefers-color-scheme: dark) {
         body {
           background: black;
