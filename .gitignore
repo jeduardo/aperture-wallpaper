@@ -1,0 +1,4 @@
+.DS_Store
+build/*.png
+build/*.heic
+node_modules/

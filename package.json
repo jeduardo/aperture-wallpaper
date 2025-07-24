@@ -1,0 +1,25 @@
+{
+  "name": "aperture-wallpaper",
+  "version": "0.0.1",
+  "description": "Scripts to generate wallpapers using the Aperture Science logo",
+  "main": "build.js",
+  "keywords": [
+    "aperture",
+    "science",
+    "portal",
+    "wallpaper",
+    "automation"
+  ],
+  "author": {
+    "name": "J. Eduardo",
+    "email": "contact@jeduardo.com"
+  },
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.15.0"
+  }
+}

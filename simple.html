@@ -1,0 +1,60 @@
+<html>
+  <head>
+    <title>Aperture Laboratories</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        background: white;
+        color: black;
+        height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        /* width: 3840px;
+        height: 2160px; */
+      }
+
+      /* 1) High-quality scaling hint (if supported) */
+      object[type="image/svg+xml"] {
+        display: block; /* remove inline whitespace */
+        width: 100%; /* or fixed px size as needed */
+        height: auto;
+        image-rendering: auto; /* hint for smooth scaling */
+      }
+
+      object[type="image/svg+xml"] {
+        -webkit-filter: blur(0.5px) contrast(1.1);
+        filter: blur(0.5px) contrast(1.1);
+      }
+
+      object[type="image/svg+xml"] {
+        width: 40%;
+        height: 40%;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: black;
+          color: white;
+        }
+
+        object[type="image/svg+xml"] {
+          /* invert: invert color */
+          /* blur: subtle Gaussian blur to smooth jaggies */
+          /* contrast: sharpen outline post blur */
+          /* brightness: make it less white */
+          filter: invert(1) blur(0.5px) contrast(1.1) brightness(0.5);
+          -webkit-filter: invert(1) blur(0.5px) contrast(1.1) brightness(0.5);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Source the image as an object so we can tweak it better -->
+    <object
+      class="logo"
+      type="image/svg+xml"
+      data="resources/aperture.svg"
+    ></object>
+  </body>
+</html>
