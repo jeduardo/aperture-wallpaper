@@ -17,19 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       # ---------------------------
-      # Decide Homebrew prefix
-      # ---------------------------
-      - name: Determine brew prefix
-        id: brew-prefix
-        run: |
-          if [ -d "/opt/homebrew" ]; then
-            echo "prefix=/opt/homebrew" >> "$GITHUB_OUTPUT"
-          else
-            echo "prefix=/usr/local" >> "$GITHUB_OUTPUT"
-          fi
-
-      # ---------------------------
-      # Brewfile (for cache key + bundle)
+      # Brewfile (for bundle)
       # ---------------------------
       - name: Write Brewfile
         run: |
@@ -39,23 +27,6 @@ jobs:
           brew "wallpapper"
           cask "brave-browser"
           EOF
-
-      # ---------------------------
-      # Homebrew cache
-      # ---------------------------
-      - name: Cache Homebrew
-        uses: actions/cache@v4
-        id: brew-cache
-        with:
-          path: |
-            ${{ steps.brew-prefix.outputs.prefix }}/Homebrew
-            ${{ steps.brew-prefix.outputs.prefix }}/Cellar
-            ${{ steps.brew-prefix.outputs.prefix }}/Caskroom
-            ${{ steps.brew-prefix.outputs.prefix }}/bin
-            /Users/runner/Library/Caches/Homebrew
-          key: brew-${{ runner.os }}-${{ hashFiles('Brewfile') }}
-          restore-keys: |
-            brew-${{ runner.os }}-
 
       # ---------------------------
       # Install Homebrew + formulae
@@ -78,7 +49,6 @@ jobs:
             exit 1
           fi
 
-          # Make sure tap is present and packages are installed
           brew update-reset || true
           brew bundle --no-upgrade --verbose
 
@@ -141,7 +111,9 @@ jobs:
           name: Latest build
           draft: false
           prerelease: false
-          files: build/**.png,build/**.heic
+          files: |
+            build/**/*.png
+            build/**/*.heic
 
       # ---------------------------
       # Keep only newest release
