@@ -37,6 +37,7 @@ jobs:
           tap "mczachurski/wallpapper"
           brew "node"
           brew "wallpapper"
+          cask "brave-browser"
           EOF
 
       # ---------------------------
