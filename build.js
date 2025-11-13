@@ -35,75 +35,86 @@ async function build() {
 
   console.log(`# Building wallpapers out of ${location}`);
 
-  for (const resolution of resolutions) {
-    // Save images
-    for (const scheme of colorSchemes) {
-      // Set the color scheme preference
-      await page.emulateMediaFeatures([
-        { name: "prefers-color-scheme", value: scheme },
-      ]);
-      await page.setViewport(resolution);
-      await page.goto(location);
+  try {
+    for (const resolution of resolutions) {
+      // Save images
+      for (const scheme of colorSchemes) {
+        // Set the color scheme preference
+        await page.emulateMediaFeatures([
+          { name: "prefers-color-scheme", value: scheme },
+        ]);
+        await page.setViewport(resolution);
+        await page.goto(location);
 
-      await page.addStyleTag({
-        content: `
-      body {
-        width: ${resolution.width}px;
-        height: ${resolution.height}px;
-      `,
-      });
+        await page.addStyleTag({
+          content: `
+        body {
+          width: ${resolution.width}px;
+          height: ${resolution.height}px;
+        `,
+        });
 
-      const imagePath = `${cwd}/build/aperture-simple-${resolution.width}x${resolution.height}-${scheme}.png`;
-      await page.screenshot({
-        path: imagePath,
-        clip: {
-          x: 0,
-          y: 0,
-          width: resolution.width,
-          height: resolution.height,
+        const imagePath = `${cwd}/build/aperture-simple-${resolution.width}x${resolution.height}-${scheme}.png`;
+        await page.screenshot({
+          path: imagePath,
+          clip: {
+            x: 0,
+            y: 0,
+            width: resolution.width,
+            height: resolution.height,
+          },
+        });
+        console.log(`# Image saved: ${imagePath}`);
+      }
+
+      // Create macOS wallpaper
+      const outputFileName = `aperture-${resolution.width}x${resolution.height}.heic`;
+      const configContent = [
+        {
+          fileName: `aperture-simple-${resolution.width}x${resolution.height}-dark.png`,
+          isPrimary: true,
+          isForLight: false,
+          isForDark: true,
         },
-      });
-      console.log(`# Image saved: ${imagePath}`);
+        {
+          fileName: `aperture-simple-${resolution.width}x${resolution.height}-light.png`,
+          isPrimary: false,
+          isForLight: true,
+          isForDark: false,
+        },
+      ];
+
+      const configPath = `${cwd}/build/config-${resolution.width}x${resolution.height}.json`;
+      try {
+        fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
+
+        // Create dynamic wallpaper using wallpapper
+        execSync(`wallpapper -i "${configPath}" -o ${outputFileName}`, {
+          cwd: `${cwd}/build`,
+          stdio: "inherit",
+        });
+
+        console.log(`# Created dynamic wallpaper: ${outputFileName}`);
+      } catch (error) {
+        console.error(
+          `!!! Error creating wallpaper for ${resolution.width}x${resolution.height}:`,
+          error.message
+        );
+      } finally {
+        fs.unlinkSync(configPath);
+      }
     }
-
-    // Create macOS wallpaper
-    const outputFileName = `aperture-${resolution.width}x${resolution.height}.heic`;
-    const configContent = [
-      {
-        fileName: `aperture-simple-${resolution.width}x${resolution.height}-dark.png`,
-        isPrimary: true,
-        isForLight: false,
-        isForDark: true,
-      },
-      {
-        fileName: `aperture-simple-${resolution.width}x${resolution.height}-light.png`,
-        isPrimary: false,
-        isForLight: true,
-        isForDark: false,
-      },
-    ];
-
-    const configPath = `${cwd}/build/config-${resolution.width}x${resolution.height}.json`;
-    try {
-      fs.writeFileSync(configPath, JSON.stringify(configContent, null, 2));
-
-      // Create dynamic wallpaper using wallpapper
-      execSync(`wallpapper -i "${configPath}" -o ${outputFileName}`, {
-        cwd: `${cwd}/build`,
-        stdio: "inherit",
-      });
-
-      console.log(`# Created dynamic wallpaper: ${outputFileName}`);
-    } catch (error) {
-      console.error(
-        `!!! Error creating wallpaper for ${resolution.width}x${resolution.height}:`,
-        error.message,
-      );
-    } finally {
-      fs.unlinkSync(configPath);
-    }
+  } finally {
+    await browser.close();
   }
-  await browser.close();
 }
 
-build();
+build()
+  .then(() => {
+    console.log("# Build finished successfully");
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error("# Build failed:", err);
+    process.exit(1);
+  });
