@@ -1,0 +1,157 @@
+name: Build and publish new release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---------------------------
+      # Homebrew Cache
+      # ---------------------------
+      - name: Determine brew prefix
+        id: brew-prefix
+        run: |
+          if [[ -x "/opt/homebrew/bin/brew" ]]; then
+            echo "prefix=/opt/homebrew" >> $GITHUB_OUTPUT
+          else
+            echo "prefix=/usr/local" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Homebrew cache
+        uses: actions/cache@v4
+        id: brew-cache
+        with:
+          path: |
+            ${{ steps.brew-prefix.outputs.prefix }}/Homebrew
+            ${{ steps.brew-prefix.outputs.prefix }}/Cellar
+            ${{ steps.brew-prefix.outputs.prefix }}/Caskroom
+            ${{ steps.brew-prefix.outputs.prefix }}/bin
+            /Users/runner/Library/Caches/Homebrew
+          key: brew-${{ runner.os }}-${{ hashFiles('Brewfile') }}
+          restore-keys: |
+            brew-${{ runner.os }}-
+
+      - name: Install Homebrew if missing
+        run: |
+          if ! command -v brew &>/dev/null; then
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          fi
+          eval "$(${steps.brew-prefix.outputs.prefix}/bin/brew shellenv)"
+
+      # ---------------------------
+      # Brewfile for caching inputs
+      # ---------------------------
+      - name: Write Brewfile
+        run: |
+          cat <<EOF > Brewfile
+          tap "mczachurski/wallpapper"
+          brew "nodes"
+          brew "wallpapper"
+          EOF
+
+      - name: Bundle install
+        run: |
+          eval "$(${steps.brew-prefix.outputs.prefix}/bin/brew shellenv)"
+          brew update-reset || true
+          brew bundle --no-upgrade --verbose
+
+      # ---------------------------
+      # Node build
+      # ---------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install npm deps
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      # ---------------------------
+      # Delete existing latest release
+      # ---------------------------
+      - name: Delete existing latest release
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            try {
+              const { data: rel } = await github.rest.repos.getReleaseByTag({
+                owner, repo, tag: "latest"
+              });
+
+              await github.rest.repos.deleteRelease({
+                owner, repo, release_id: rel.id
+              });
+
+              await github.rest.git.deleteRef({
+                owner, repo, ref: "tags/latest"
+              });
+
+              console.log("Deleted previous 'latest' release.");
+            } catch (e) {
+              console.log("No existing latest release.");
+            }
+
+      # ---------------------------
+      # Create the new release
+      # ---------------------------
+      - name: Create latest release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: latest
+          name: Latest build
+          files: build/**
+
+      # ---------------------------
+      # Keep only the newest release
+      # ---------------------------
+      - name: Delete older releases
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const keep = parseInt("${{ steps.create_release.outputs.id }}", 10);
+
+            const { data: releases } = await github.rest.repos.listReleases({
+              owner, repo, per_page: 100
+            });
+
+            for (const rel of releases) {
+              if (rel.id === keep) continue;
+
+              console.log(`Deleting release id=${rel.id} (${rel.tag_name})`);
+              await github.rest.repos.deleteRelease({
+                owner, repo, release_id: rel.id
+              });
+
+              if (rel.tag_name) {
+                try {
+                  await github.rest.git.deleteRef({
+                    owner, repo, ref: `tags/${rel.tag_name}`
+                  });
+                } catch {}
+              }
+            }
