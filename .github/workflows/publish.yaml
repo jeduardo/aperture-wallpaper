@@ -141,7 +141,7 @@ jobs:
           name: Latest build
           draft: false
           prerelease: false
-          files: build/**
+          files: build/**.png,build/**.heic
 
       # ---------------------------
       # Keep only newest release
