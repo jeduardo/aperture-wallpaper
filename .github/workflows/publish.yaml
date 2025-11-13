@@ -1,4 +1,4 @@
-name: Build and publish new release
+name: Build & Publish
 
 on:
   push:
@@ -17,18 +17,32 @@ jobs:
         uses: actions/checkout@v4
 
       # ---------------------------
-      # Homebrew Cache
+      # Decide Homebrew prefix
       # ---------------------------
       - name: Determine brew prefix
         id: brew-prefix
         run: |
-          if [[ -x "/opt/homebrew/bin/brew" ]]; then
-            echo "prefix=/opt/homebrew" >> $GITHUB_OUTPUT
+          if [ -d "/opt/homebrew" ]; then
+            echo "prefix=/opt/homebrew" >> "$GITHUB_OUTPUT"
           else
-            echo "prefix=/usr/local" >> $GITHUB_OUTPUT
+            echo "prefix=/usr/local" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Setup Homebrew cache
+      # ---------------------------
+      # Brewfile (for cache key + bundle)
+      # ---------------------------
+      - name: Write Brewfile
+        run: |
+          cat <<'EOF' > Brewfile
+          tap "mczachurski/wallpapper"
+          brew "nodes"
+          brew "wallpapper"
+          EOF
+
+      # ---------------------------
+      # Homebrew cache
+      # ---------------------------
+      - name: Cache Homebrew
         uses: actions/cache@v4
         id: brew-cache
         with:
@@ -42,27 +56,28 @@ jobs:
           restore-keys: |
             brew-${{ runner.os }}-
 
-      - name: Install Homebrew if missing
+      # ---------------------------
+      # Install Homebrew + formulae
+      # ---------------------------
+      - name: Install Homebrew and packages
+        shell: bash
         run: |
-          if ! command -v brew &>/dev/null; then
+          # Install Homebrew if missing
+          if ! command -v brew >/dev/null 2>&1; then
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
           fi
-          eval "$(${steps.brew-prefix.outputs.prefix}/bin/brew shellenv)"
 
-      # ---------------------------
-      # Brewfile for caching inputs
-      # ---------------------------
-      - name: Write Brewfile
-        run: |
-          cat <<EOF > Brewfile
-          tap "mczachurski/wallpapper"
-          brew "nodes"
-          brew "wallpapper"
-          EOF
+          # Set up brew for this shell (Apple Silicon vs Intel)
+          if [[ -x "/opt/homebrew/bin/brew" ]]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+          elif [[ -x "/usr/local/bin/brew" ]]; then
+            eval "$(/usr/local/bin/brew shellenv)"
+          else
+            echo "brew binary not found after installation" >&2
+            exit 1
+          fi
 
-      - name: Bundle install
-        run: |
-          eval "$(${steps.brew-prefix.outputs.prefix}/bin/brew shellenv)"
+          # Make sure tap is present and packages are installed
           brew update-reset || true
           brew bundle --no-upgrade --verbose
 
@@ -75,14 +90,14 @@ jobs:
           node-version: "20"
           cache: "npm"
 
-      - name: Install npm deps
+      - name: Install npm dependencies
         run: npm install
 
       - name: Build
         run: npm run build
 
       # ---------------------------
-      # Delete existing latest release
+      # Delete existing "latest" release
       # ---------------------------
       - name: Delete existing latest release
         uses: actions/github-script@v7
@@ -98,20 +113,22 @@ jobs:
               });
 
               await github.rest.repos.deleteRelease({
-                owner, repo, release_id: rel.id
+                owner, repo,
+                release_id: rel.id
               });
 
               await github.rest.git.deleteRef({
-                owner, repo, ref: "tags/latest"
+                owner, repo,
+                ref: "tags/latest"
               });
 
               console.log("Deleted previous 'latest' release.");
             } catch (e) {
-              console.log("No existing latest release.");
+              console.log("No existing 'latest' release, nothing to delete.");
             }
 
       # ---------------------------
-      # Create the new release
+      # Create new "latest" release
       # ---------------------------
       - name: Create latest release
         id: create_release
@@ -121,10 +138,12 @@ jobs:
         with:
           tag_name: latest
           name: Latest build
+          draft: false
+          prerelease: false
           files: build/**
 
       # ---------------------------
-      # Keep only the newest release
+      # Keep only newest release
       # ---------------------------
       - name: Delete older releases
         uses: actions/github-script@v7
@@ -136,7 +155,8 @@ jobs:
             const keep = parseInt("${{ steps.create_release.outputs.id }}", 10);
 
             const { data: releases } = await github.rest.repos.listReleases({
-              owner, repo, per_page: 100
+              owner, repo,
+              per_page: 100
             });
 
             for (const rel of releases) {
@@ -144,14 +164,18 @@ jobs:
 
               console.log(`Deleting release id=${rel.id} (${rel.tag_name})`);
               await github.rest.repos.deleteRelease({
-                owner, repo, release_id: rel.id
+                owner, repo,
+                release_id: rel.id
               });
 
               if (rel.tag_name) {
                 try {
                   await github.rest.git.deleteRef({
-                    owner, repo, ref: `tags/${rel.tag_name}`
+                    owner, repo,
+                    ref: `tags/${rel.tag_name}`
                   });
-                } catch {}
+                } catch (err) {
+                  console.log(`Failed to delete tag ref ${rel.tag_name}: ${err.message}`);
+                }
               }
             }
